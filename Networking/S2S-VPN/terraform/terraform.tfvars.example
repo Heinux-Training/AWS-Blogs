@@ -1,0 +1,17 @@
+region                 = "us-east-1"
+aws_account_profile    = "aws-workload"
+onprem_account_profile = "onprem-sim"
+
+# --- AWS workload VPC ---
+aws_vpc_cidr            = "10.0.0.0/16"
+aws_private_subnet_cidr = "10.0.1.0/24"
+
+# --- On-prem simulation VPC ---
+onprem_vpc_cidr           = "10.100.0.0/16"
+onprem_public_subnet_cidr = "10.100.1.0/24"
+
+# --- Access + compute ---
+key_pair_name = "my-keypair"     # created by Terraform; private key saved as my-keypair.pem
+my_ip_cidr    = "203.0.113.4/32" # your public IP + /32
+bucket_name   = "private-s3-demo-CHANGE-ME-1234"
+instance_type = "t3.micro"

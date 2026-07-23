@@ -1,0 +1,16 @@
+# SSH private keys generated on apply
+*.pem
+
+# Terraform state (may contain secrets: private key, VPN PSKs)
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+crash.log
+
+# Local variable files with real values
+terraform.tfvars
+*.auto.tfvars
+
+# Plan output
+*.tfplan

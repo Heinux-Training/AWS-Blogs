@@ -1,0 +1,62 @@
+#!/bin/bash
+set -eux
+
+# ---- Install libreswan ------------------------------------------------------
+# NOTE: Amazon Linux 2023 does NOT ship a "strongswan" package, and EPEL's
+# RHEL9 repos don't resolve against AL2023's $releasever. libreswan is in the
+# default AL2023 repos, uses the same ipsec.conf syntax, and is fully supported
+# by AWS Site-to-Site VPN.
+dnf install -y libreswan
+
+# ---- Enable IP forwarding ---------------------------------------------------
+cat >/etc/sysctl.d/99-vpn.conf <<'SYSCTL'
+net.ipv4.ip_forward = 1
+net.ipv4.conf.all.accept_redirects = 0
+net.ipv4.conf.all.send_redirects = 0
+SYSCTL
+sysctl --system
+
+# ---- Make sure ipsec.conf / ipsec.secrets pull in the conn + secret files ---
+grep -q 'include /etc/ipsec.d/\*.conf'    /etc/ipsec.conf    || echo 'include /etc/ipsec.d/*.conf'    >> /etc/ipsec.conf
+grep -q 'include /etc/ipsec.d/\*.secrets' /etc/ipsec.secrets || echo 'include /etc/ipsec.d/*.secrets' >> /etc/ipsec.secrets
+
+# ---- Tunnel definitions -----------------------------------------------------
+# AWS accepts DH group 14 (modp2048) with AES256/SHA256 by default. AL2023's
+# crypto-policy blocks the weaker modp1024 (DH group 2), so we must NOT use it.
+cat >/etc/ipsec.d/aws.conf <<'CONF'
+conn %default
+    type=tunnel
+    authby=secret
+    keyexchange=ike
+    ikev2=never
+    ike=aes256-sha256-modp2048
+    phase2alg=aes256-sha256-modp2048
+    ikelifetime=8h
+    salifetime=1h
+    dpddelay=10
+    dpdtimeout=30
+    dpdaction=restart
+    left=%defaultroute
+    leftid=${strongswan_ip}
+    leftsubnet=${onprem_cidr}
+    rightsubnet=${aws_cidr}
+
+conn aws-tunnel1
+    right=${tunnel1_address}
+    auto=start
+
+conn aws-tunnel2
+    right=${tunnel2_address}
+    auto=start
+CONF
+
+# ---- Pre-shared keys --------------------------------------------------------
+cat >/etc/ipsec.d/aws.secrets <<'SECRETS'
+${strongswan_ip} ${tunnel1_address} : PSK "${tunnel1_psk}"
+${strongswan_ip} ${tunnel2_address} : PSK "${tunnel2_psk}"
+SECRETS
+chmod 600 /etc/ipsec.d/aws.secrets
+
+# ---- Bring the tunnels up ---------------------------------------------------
+systemctl enable ipsec
+systemctl restart ipsec
