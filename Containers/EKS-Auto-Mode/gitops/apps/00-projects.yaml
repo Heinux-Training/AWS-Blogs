@@ -17,7 +17,7 @@ spec:
     targetRevision: main
     path: Containers/EKS-Auto-Mode/gitops/projects
   destination:
-    server: https://kubernetes.default.svc
+    server: https://1D35F97CD4C78AD94D2D18CC73208679.gr7.ap-southeast-1.eks.amazonaws.com
     namespace: argocd
   syncPolicy:
     automated:

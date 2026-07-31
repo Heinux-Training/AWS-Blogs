@@ -17,7 +17,7 @@ spec:
     targetRevision: main
     path: Containers/EKS-Auto-Mode/gitops/manifests/gpu-test
   destination:
-    server: https://kubernetes.default.svc
+    server: https://1D35F97CD4C78AD94D2D18CC73208679.gr7.ap-southeast-1.eks.amazonaws.com
     namespace: gpu-test
   # gpu-burn ships with replicas: 0 so it costs nothing by default. Ignoring the field lets
   # you scale it up by hand without selfHeal immediately scaling it back down.

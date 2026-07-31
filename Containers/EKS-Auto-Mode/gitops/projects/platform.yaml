@@ -19,8 +19,10 @@ spec:
     - https://github.com/Heinux-Training/AWS-Blogs.git
     - git@github.com:Heinux-Training/AWS-Blogs.git
 
+  # Must match each Application's destination.server byte-for-byte. A mismatch here reads as
+  # "application destination is not permitted in project" rather than a not-found error.
   destinations:
-    - server: https://kubernetes.default.svc
+    - server: https://1D35F97CD4C78AD94D2D18CC73208679.gr7.ap-southeast-1.eks.amazonaws.com
       namespace: "*"
 
   # Cluster-scoped resources these apps are allowed to manage. The GPU NodePool is
