@@ -12,6 +12,16 @@ metadata:
 spec:
   description: Platform add-ons and demo workloads for the EKS Auto Mode cluster
 
+  # REQUIRED on EKS-managed Argo CD. The control plane runs in AWS's account, so `argocd` in
+  # this cluster is NOT Argo CD's own namespace — Applications living there are treated as
+  # "apps in any namespace" and each project must opt in to the namespaces it accepts.
+  # Omitting this fails with:
+  #   application 'gpu-test' in namespace 'argocd' is not permitted to use project 'platform'
+  # The built-in `default` project already permits it, which is why default-project apps sync
+  # while these ones don't.
+  sourceNamespaces:
+    - argocd
+
   # Only these repos may be a source. Argo CD matches this literally against each
   # Application's repoURL, so the HTTPS and SSH spellings of the same repo are two
   # different entries — list whichever form your Applications actually use.
@@ -19,8 +29,10 @@ spec:
     - https://github.com/Heinux-Training/AWS-Blogs.git
     - git@github.com:Heinux-Training/AWS-Blogs.git
 
-  # Must match each Application's destination.server byte-for-byte. A mismatch here reads as
-  # "application destination is not permitted in project" rather than a not-found error.
+  # Must match how the Applications address the cluster. Argo CD compares these fields as
+  # written: a project listing `server:` will NOT authorise an app using `name:` even when
+  # both resolve to the same cluster. Mismatch reads as "application destination is not
+  # permitted in project", which looks like an RBAC problem rather than a spelling one.
   destinations:
     - name: local-cluster
       namespace: "*"

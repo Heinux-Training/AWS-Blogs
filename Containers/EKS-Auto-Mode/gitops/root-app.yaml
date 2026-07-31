@@ -30,10 +30,12 @@ spec:
       include: "*.yaml"
   destination:
     # EKS-managed Argo CD: the control plane runs in AWS's account, NOT in this cluster, so
-    # https://kubernetes.default.svc ("the cluster I run inside") is disabled and fails with
-    # `cluster "https://kubernetes.default.svc" is disabled`. Target the real API endpoint —
-    # the one the managed capability registered — which must match this string exactly:
-    #   kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}'
+    # `server: https://kubernetes.default.svc` ("the cluster I run inside") is disabled and
+    # fails with `cluster "https://kubernetes.default.svc" is disabled`.
+    #
+    # `name` refers to a registered cluster instead of an endpoint — see local-cluster.yaml.
+    # Preferred over `server:` here because the registered server value is the cluster ARN,
+    # and a name survives cluster recreation without touching every manifest.
     name: local-cluster
     namespace: argocd
   syncPolicy:
