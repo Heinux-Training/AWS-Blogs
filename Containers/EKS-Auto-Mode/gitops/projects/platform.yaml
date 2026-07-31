@@ -22,7 +22,7 @@ spec:
   # Must match each Application's destination.server byte-for-byte. A mismatch here reads as
   # "application destination is not permitted in project" rather than a not-found error.
   destinations:
-    - server: https://1D35F97CD4C78AD94D2D18CC73208679.gr7.ap-southeast-1.eks.amazonaws.com
+    - name: local-cluster
       namespace: "*"
 
   # Cluster-scoped resources these apps are allowed to manage. The GPU NodePool is

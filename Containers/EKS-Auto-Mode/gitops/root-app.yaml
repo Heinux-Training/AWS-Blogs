@@ -34,7 +34,7 @@ spec:
     # `cluster "https://kubernetes.default.svc" is disabled`. Target the real API endpoint —
     # the one the managed capability registered — which must match this string exactly:
     #   kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}'
-    server: https://1D35F97CD4C78AD94D2D18CC73208679.gr7.ap-southeast-1.eks.amazonaws.com
+    name: local-cluster
     namespace: argocd
   syncPolicy:
     automated:
