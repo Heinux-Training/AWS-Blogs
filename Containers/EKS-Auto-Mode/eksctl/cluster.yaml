@@ -1,0 +1,97 @@
+---
+# EKS cluster with Auto Mode enabled, sized for a GitOps (Argo CD) control cluster.
+#
+#   eksctl create cluster -f eksctl/cluster.yaml
+#
+# Auto Mode means EKS owns compute, storage and load balancing:
+#   - Karpenter-style node provisioning via the built-in `general-purpose` / `system` node pools
+#   - EBS CSI driver, VPC CNI, CoreDNS, kube-proxy and the AWS Load Balancer Controller are
+#     managed by AWS *inside* the service, not installed as addons. That is why there is no
+#     `addons:` block and no `managedNodeGroups:` block below.
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+metadata:
+  name: eks-auto-argocd
+  region: ap-southeast-1
+  version: "1.36"
+  tags:
+    project: aws-blogs
+    component: eks-auto-mode
+    managed-by: eksctl
+
+# ---------------------------------------------------------------------------
+# Auto Mode
+# ---------------------------------------------------------------------------
+# `general-purpose` schedules normal workloads on on-demand amd64 nodes.
+# `system` is tainted with CriticalAddonsOnly=true:NoSchedule and is where you place
+# cluster-critical add-ons. Argo CD runs on `general-purpose` in this setup.
+autoModeConfig:
+  enabled: true
+  nodePools:
+    - general-purpose
+    - system
+
+# ---------------------------------------------------------------------------
+# Networking
+# ---------------------------------------------------------------------------
+# eksctl creates a new VPC (3 AZs, public + private subnets) and applies the subnet tags
+# Auto Mode needs for node placement and for ALB/NLB discovery.
+# Auto Mode nodes land in the private subnets; internet-facing ALBs use the public ones.
+vpc:
+  cidr: 10.42.0.0/16
+  nat:
+    gateway: HighlyAvailable
+  clusterEndpoints:
+    publicAccess: true
+    privateAccess: true
+
+availabilityZones:
+  - ap-southeast-1a
+  - ap-southeast-1b
+  - ap-southeast-1c
+
+kubernetesNetworkConfig:
+  ipFamily: IPv4
+
+# ---------------------------------------------------------------------------
+# Authentication / authorization
+# ---------------------------------------------------------------------------
+# Auto Mode requires access-entry based auth (API or API_AND_CONFIG_MAP). aws-auth is not used.
+# Add an entry per human/CI principal that needs kubectl access — see accessEntries below.
+accessConfig:
+  authenticationMode: API
+  bootstrapClusterCreatorAdminPermissions: true
+  # accessEntries:
+  #   - principalARN: arn:aws:iam::111122223333:role/PlatformAdmin
+  #     accessPolicies:
+  #       - policyARN: arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy
+  #         accessScope:
+  #           type: cluster
+  #   - principalARN: arn:aws:iam::111122223333:role/GitHubActionsDeploy
+  #     accessPolicies:
+  #       - policyARN: arn:aws:eks::aws:cluster-access-policy/AmazonEKSEditPolicy
+  #         accessScope:
+  #           type: namespace
+  #           namespaces:
+  #             - argocd
+
+# EKS Pod Identity is the mechanism Argo CD uses for AWS access (ECR, Secrets Manager, ...).
+# The associations themselves live in eksctl/pod-identity.yaml so they can be applied
+# *after* the Argo CD Helm release creates its service accounts.
+iam:
+  withOIDC: true
+
+addonsConfig:
+  autoApplyPodIdentityAssociations: true
+
+# ---------------------------------------------------------------------------
+# Control plane logging
+# ---------------------------------------------------------------------------
+cloudWatch:
+  clusterLogging:
+    enableTypes:
+      - api
+      - audit
+      - authenticator
+    logRetentionInDays: 30

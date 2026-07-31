@@ -1,0 +1,54 @@
+---
+# Optional long-running workload: keeps a GPU busy so you can watch the node stay up,
+# check consolidation behaviour, and see utilisation in CloudWatch/Container Insights.
+#
+# Scaled to 0 by default so you do not pay for a GPU node by accident. To use it:
+#   kubectl -n gpu-test scale deploy/gpu-burn --replicas=1
+#
+# Argo CD self-heal would normally reset that back to 0, so the replicas field is ignored
+# via ignoreDifferences on the parent Application (see gitops/apps/20-gpu-test.yaml notes).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gpu-burn
+  namespace: gpu-test
+  annotations:
+    argocd.argoproj.io/compare-options: IgnoreExtraneous
+spec:
+  replicas: 0
+  selector:
+    matchLabels:
+      app: gpu-burn
+  template:
+    metadata:
+      labels:
+        app: gpu-burn
+    spec:
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Equal
+          value: "true"
+          effect: NoSchedule
+      nodeSelector:
+        node-type: gpu
+      containers:
+        - name: burn
+          image: nvidia/cuda:12.6.2-base-ubuntu22.04
+          # No real CUDA kernel here — just a heartbeat that holds the GPU allocation.
+          # Swap in oguzpastirmaci/gpu-burn if you want an actual stress test.
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              while true; do
+                nvidia-smi --query-gpu=utilization.gpu,memory.used \
+                           --format=csv,noheader
+                sleep 30
+              done
+          resources:
+            requests:
+              cpu: "1"
+              memory: 2Gi
+              nvidia.com/gpu: "1"
+            limits:
+              memory: 4Gi
+              nvidia.com/gpu: "1"

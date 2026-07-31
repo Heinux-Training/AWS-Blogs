@@ -1,0 +1,27 @@
+---
+# Wave -1: AppProjects must exist before any child Application that references them,
+# otherwise those apps come up with "project not found" until the next reconcile.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: projects
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Heinux-Training/AWS-Blogs.git
+    targetRevision: main
+    path: Containers/EKS-Auto-Mode/gitops/projects
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ApplyOutOfSyncOnly=true

@@ -1,0 +1,42 @@
+---
+# Wave 10: the actual GPU smoke test. Syncing this is what makes Auto Mode go provision
+# a g-family node — expect ~2-4 minutes from sync to a Complete Job.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: gpu-test
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "10"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: platform
+  source:
+    repoURL: https://github.com/Heinux-Training/AWS-Blogs.git
+    targetRevision: main
+    path: Containers/EKS-Auto-Mode/gitops/manifests/gpu-test
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: gpu-test
+  # gpu-burn ships with replicas: 0 so it costs nothing by default. Ignoring the field lets
+  # you scale it up by hand without selfHeal immediately scaling it back down.
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      name: gpu-burn
+      jsonPointers:
+        - /spec/replicas
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

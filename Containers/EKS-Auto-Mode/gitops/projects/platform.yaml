@@ -1,0 +1,44 @@
+---
+# AppProject that all platform/demo child apps belong to. Keeping children out of
+# `default` means you can restrict *where* they may deploy and *what* they may create
+# without touching the default project every other Argo CD install shares.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: platform
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: Platform add-ons and demo workloads for the EKS Auto Mode cluster
+
+  # Only these repos may be a source. Argo CD matches this literally against each
+  # Application's repoURL, so the HTTPS and SSH spellings of the same repo are two
+  # different entries — list whichever form your Applications actually use.
+  sourceRepos:
+    - https://github.com/Heinux-Training/AWS-Blogs.git
+    - git@github.com:Heinux-Training/AWS-Blogs.git
+
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: "*"
+
+  # Cluster-scoped resources these apps are allowed to manage. The GPU NodePool is
+  # cluster-scoped, hence karpenter.sh/NodePool being listed explicitly.
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+    - group: karpenter.sh
+      kind: NodePool
+    - group: eks.amazonaws.com
+      kind: NodeClass
+    - group: storage.k8s.io
+      kind: StorageClass
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRole
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRoleBinding
+
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"

@@ -1,0 +1,35 @@
+---
+# Wave 0: cluster capacity first. The GPU NodePool has to be registered before the test
+# workload is scheduled, or the pod sits Pending with "no nodes available" until the
+# NodePool eventually lands.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: gpu-nodepool
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: platform
+  source:
+    repoURL: https://github.com/Heinux-Training/AWS-Blogs.git
+    targetRevision: main
+    path: Containers/EKS-Auto-Mode/gitops/manifests/gpu-nodepool
+  destination:
+    server: https://kubernetes.default.svc
+    # NodePool is cluster-scoped; this namespace is only the app's default target.
+    namespace: kube-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ApplyOutOfSyncOnly=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

@@ -1,0 +1,59 @@
+---
+# EKS Pod Identity associations. Apply *after* the Helm releases have created their service
+# accounts — the SA must exist or eksctl errors out:
+#
+#   eksctl create podidentityassociation -f eksctl/pod-identity.yaml
+#
+# Pod Identity replaces IRSA here: no OIDC trust policy, no eks.amazonaws.com/role-arn
+# annotation on the service account. The association *is* the binding.
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+metadata:
+  name: eks-auto-argocd
+  region: ap-southeast-1
+
+podIdentityAssociations:
+  # -------------------------------------------------------------------------
+  # External Secrets Operator — reads the Git deploy key from Secrets Manager
+  # -------------------------------------------------------------------------
+  # This is what makes SSH repo auth declarative: ESO pulls the private key from
+  # Secrets Manager and materialises the Argo CD repo-creds Secret in-cluster, so the
+  # key never lands in Git.
+  - namespace: external-secrets
+    serviceAccountName: external-secrets
+    roleName: eks-auto-argocd-external-secrets
+    permissionPolicy:
+      Version: "2012-10-17"
+      Statement:
+        - Effect: Allow
+          Action:
+            - secretsmanager:GetSecretValue
+            - secretsmanager:DescribeSecret
+          # Scoped to the argocd/* prefix — ESO cannot read unrelated secrets in the
+          # account. Widen the prefix only as far as you actually need.
+          Resource:
+            - arn:aws:secretsmanager:ap-southeast-1:*:secret:argocd/*
+        - Effect: Allow
+          Action:
+            - kms:Decrypt
+          Resource: "*"
+          Condition:
+            StringEquals:
+              kms:ViaService: secretsmanager.ap-southeast-1.amazonaws.com
+
+  # -------------------------------------------------------------------------
+  # Argo CD repo-server — only needed for ECR / Helm-in-ECR, not for Git SSH
+  # -------------------------------------------------------------------------
+  - namespace: argocd
+    serviceAccountName: argocd-repo-server
+    roleName: eks-auto-argocd-argocd-repo-server
+    permissionPolicy:
+      Version: "2012-10-17"
+      Statement:
+        - Effect: Allow
+          Action:
+            - ecr:GetAuthorizationToken
+            - ecr:BatchGetImage
+            - ecr:GetDownloadUrlForLayer
+          Resource: "*"

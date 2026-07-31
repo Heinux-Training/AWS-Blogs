@@ -1,0 +1,35 @@
+---
+# Wave 1: repo credentials. After ESO is up (wave 0) but before any app that pulls from a
+# private repo. The ClusterSecretStore + ExternalSecret live here; the key itself is in
+# Secrets Manager.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: repo-creds
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Heinux-Training/AWS-Blogs.git
+    targetRevision: main
+    path: Containers/EKS-Auto-Mode/gitops/manifests/repo-creds
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ApplyOutOfSyncOnly=true
+    retry:
+      # ESO's CRDs may not be established on the first pass; retrying covers that gap.
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m

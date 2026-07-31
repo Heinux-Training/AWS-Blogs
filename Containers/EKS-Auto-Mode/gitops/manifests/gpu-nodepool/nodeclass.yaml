@@ -1,0 +1,32 @@
+---
+# Auto Mode's built-in `default` NodeClass works fine, but it is owned by AWS and cannot be
+# edited. Declaring your own gives you control over subnet/SG selection and node tagging,
+# which is what you want for a capacity pool that will run expensive GPU instances.
+#
+# The `eks.amazonaws.com` API group (not `karpenter.k8s.aws`) is the Auto Mode flavour.
+apiVersion: eks.amazonaws.com/v1
+kind: NodeClass
+metadata:
+  name: gpu
+spec:
+  # Auto Mode creates this role/instance profile as part of cluster creation. Rename only
+  # if you customised the node role in eksctl.
+  role: eksctl-eks-auto-argocd-cluster-AutoModeNodeRole-64S69BXCDDmL
+  subnetSelectorTerms:
+    # Private subnets carry this tag from eksctl. GPU nodes should never be public.
+    - tags:
+        kubernetes.io/role/internal-elb: "1"
+        kubernetes.io/cluster/eks-auto-argocd: owned
+  securityGroupSelectorTerms:
+    - tags:
+        aws:eks:cluster-name: eks-auto-argocd
+  # NVMe instance stores on g5/g6 are ephemeral; the root EBS volume still needs headroom
+  # for the CUDA image layers, which are multi-GB.
+  ephemeralStorage:
+    size: 100Gi
+    iops: 3000
+    throughput: 125
+  tags:
+    project: aws-blogs
+    component: gpu-nodepool
+    managed-by: argocd

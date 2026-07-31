@@ -1,0 +1,61 @@
+---
+# Cheapest possible proof that GPU scheduling works end to end: run nvidia-smi and exit.
+#
+#   kubectl -n gpu-test logs job/gpu-smoke-test
+#
+# A Complete Job means the NodePool provisioned a g-family node, the NVIDIA AMI booted, the
+# device plugin advertised nvidia.com/gpu, and the scheduler matched the taint/toleration.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: gpu-smoke-test
+  namespace: gpu-test
+  annotations:
+    # Argo CD treats a Job spec as immutable — without this, re-syncing after any edit fails
+    # with "field is immutable". Replace recreates it instead.
+    argocd.argoproj.io/sync-options: Replace=true
+spec:
+  backoffLimit: 2
+  # Keep the pod around for 1h after finishing so you can still read logs, then clean up.
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata:
+      labels:
+        app: gpu-smoke-test
+    spec:
+      restartPolicy: Never
+      # Must match the NodePool taint or the pod will never be placed on a GPU node.
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Equal
+          value: "true"
+          effect: NoSchedule
+      nodeSelector:
+        node-type: gpu
+      containers:
+        - name: nvidia-smi
+          image: nvidia/cuda:12.6.2-base-ubuntu22.04
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              set -euo pipefail
+              echo "=== node: ${NODE_NAME} ==="
+              nvidia-smi
+              echo "=== query ==="
+              nvidia-smi --query-gpu=name,driver_version,memory.total \
+                         --format=csv,noheader
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          resources:
+            # Requesting nvidia.com/gpu is what actually drives Auto Mode to provision a GPU
+            # node. GPUs cannot be shared or overcommitted: limit == request, always.
+            requests:
+              cpu: 500m
+              memory: 1Gi
+              nvidia.com/gpu: "1"
+            limits:
+              memory: 2Gi
+              nvidia.com/gpu: "1"

@@ -1,0 +1,66 @@
+---
+# The built-in `general-purpose` NodePool explicitly excludes accelerated instance families,
+# so GPU pods stay Pending on a stock Auto Mode cluster until you add a pool like this one.
+#
+# Auto Mode nodes for g/p families boot the NVIDIA-flavoured AL2023 AMI and already run the
+# device plugin, so `nvidia.com/gpu` is advertised without installing anything.
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: gpu
+spec:
+  # Higher weight than the default pools so GPU pods land here rather than triggering an
+  # unnecessary evaluation of general-purpose.
+  weight: 10
+  template:
+    metadata:
+      labels:
+        node-type: gpu
+    spec:
+      nodeClassRef:
+        group: eks.amazonaws.com
+        kind: NodeClass
+        name: gpu
+
+      # Taint so *only* pods that explicitly tolerate GPU nodes get scheduled here. Without
+      # it every unschedulable pod in the cluster becomes a candidate for a $1/hr node.
+      taints:
+        - key: nvidia.com/gpu
+          value: "true"
+          effect: NoSchedule
+
+      requirements:
+        - key: eks.amazonaws.com/instance-family
+          operator: In
+          # g5 / g6 are the cheapest NVIDIA options in ap-southeast-1. Add p-family only if
+          # you actually need A100/H100 and have the quota for it.
+          values: ["g5", "g6"]
+        - key: eks.amazonaws.com/instance-size
+          operator: In
+          values: ["xlarge", "2xlarge"]
+        - key: kubernetes.io/arch
+          operator: In
+          values: ["amd64"]
+        - key: kubernetes.io/os
+          operator: In
+          values: ["linux"]
+        - key: karpenter.sh/capacity-type
+          operator: In
+          # Spot first — a smoke test does not care about interruptions. Drop "spot" for
+          # anything long-running.
+          values: ["spot", "on-demand"]
+
+      # GPU nodes are the most expensive thing in the cluster: recycle them aggressively
+      # once idle, and cap lifetime so they pick up AMI patches.
+      terminationGracePeriod: 1h
+      expireAfter: 168h
+
+  disruption:
+    consolidationPolicy: WhenEmptyOrUnderutilized
+    consolidateAfter: 2m
+
+  limits:
+    # Hard ceiling on the blast radius of a runaway workload.
+    cpu: "32"
+    memory: 128Gi
+    nvidia.com/gpu: "4"

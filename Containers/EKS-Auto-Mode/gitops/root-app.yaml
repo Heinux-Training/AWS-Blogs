@@ -1,0 +1,48 @@
+---
+# THE PARENT APP (app-of-apps root).
+#
+# This is the only manifest you ever apply by hand. It watches gitops/apps/ and creates one
+# child Application per file found there, so adding a workload later means committing a new
+# file to that directory — no kubectl involved.
+#
+#   kubectl apply -f gitops/root-app.yaml
+#
+# Concretely, `directory.recurse: false` + a flat gitops/apps/ dir is deliberate: children
+# live in exactly one place and nothing else in the repo is accidentally picked up.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root
+  namespace: argocd
+  finalizers:
+    # Cascade-delete every child app when this one is deleted. Removing this finalizer
+    # orphans the children instead.
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Heinux-Training/AWS-Blogs.git
+    targetRevision: main
+    path: Containers/EKS-Auto-Mode/gitops/apps
+    directory:
+      recurse: false
+      # Only pick up Application manifests; ignore stray notes or kustomization files.
+      include: "*.yaml"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      # prune: a child file deleted from Git deletes the child Application (and, thanks to
+      # its own finalizer, that child's workloads too).
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
