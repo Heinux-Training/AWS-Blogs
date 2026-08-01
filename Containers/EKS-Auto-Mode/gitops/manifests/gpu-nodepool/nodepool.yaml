@@ -32,8 +32,9 @@ spec:
       requirements:
         - key: eks.amazonaws.com/instance-family
           operator: In
-          # g5 / g6 are the cheapest NVIDIA options in ap-southeast-1. Add p-family only if
-          # you actually need A100/H100 and have the quota for it.
+          # g5g = Graviton2 + NVIDIA T4G, the arm64 GPU family. Auto Mode boots the
+          # amazon-linux-2023/arm64/nvidia AMI for these, so the driver and device plugin
+          # are already present — nothing to install.
           values: ["g5g"]
         - key: eks.amazonaws.com/instance-size
           operator: In
@@ -44,6 +45,14 @@ spec:
         - key: kubernetes.io/os
           operator: In
           values: ["linux"]
+        - key: topology.kubernetes.io/zone
+          operator: In
+          # g5g is NOT offered in ap-southeast-1c, but the cluster has private subnets in all
+          # three AZs. Without this, Karpenter can pick 1c and every launch there fails with
+          # Unsupported/InsufficientInstanceCapacity. Re-check before copying to another
+          # region: aws ec2 describe-instance-type-offerings --location-type availability-zone
+          #   --filters Name=instance-type,Values=g5g.xlarge
+          values: ["ap-southeast-1a", "ap-southeast-1b"]
         - key: karpenter.sh/capacity-type
           operator: In
           # Spot first — a smoke test does not care about interruptions. Drop "spot" for

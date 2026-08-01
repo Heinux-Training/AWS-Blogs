@@ -32,8 +32,15 @@ spec:
           effect: NoSchedule
       nodeSelector:
         node-type: gpu
+        # Pin the arch explicitly. The NodePool is arm64-only (g5g / Graviton2 + T4G), and
+        # being explicit here turns an accidental amd64-only image into an unschedulable pod
+        # instead of a CrashLoopBackOff with `exec format error`.
+        kubernetes.io/arch: arm64
       containers:
         - name: nvidia-smi
+          # Multi-arch manifest: linux/amd64 + linux/arm64 (verify before changing tags —
+          # `docker manifest inspect nvidia/cuda:<tag> | grep architecture`). The arm64 build
+          # targets SBSA, which is what G5g's Graviton2 + T4G is.
           image: nvidia/cuda:12.6.2-base-ubuntu22.04
           command: ["/bin/bash", "-c"]
           args:

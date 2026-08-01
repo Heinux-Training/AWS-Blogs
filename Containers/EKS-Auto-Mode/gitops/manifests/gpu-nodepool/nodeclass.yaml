@@ -26,7 +26,18 @@ spec:
     size: 100Gi
     iops: 3000
     throughput: 125
-  tags:
-    project: aws-blogs
-    component: gpu-nodepool
-    managed-by: argocd
+  # NO custom `tags:` here — deliberately.
+  #
+  # AmazonEKSComputePolicy gates ec2:CreateLaunchTemplate / CreateFleet / RunInstances on
+  #   "ForAllValues:StringLike": { "aws:TagKeys": [
+  #       "eks:eks-cluster-name", "eks:kubernetes-node-class-name",
+  #       "eks:kubernetes-node-pool-name", "kubernetes.io/cluster/*" ] }
+  # ForAllValues means that list is an ALLOW-LIST of tag keys: one extra key on the request
+  # (project / component / managed-by) fails the condition and the entire call is denied:
+  #   ValidationSucceeded=False  CreateLaunchTemplateAuthCheckFailed
+  #     Controller isn't authorized to call ec2:CreateLaunchTemplate
+  # Auto Mode still applies the four eks:* tags itself, so nodes remain identifiable.
+  #
+  # To tag nodes for cost allocation, don't add them here — either attach a customer managed
+  # policy to the CLUSTER role (arn above) that allows your keys, or tag via the
+  # `general-purpose`/`system` pools' AWS-managed defaults.

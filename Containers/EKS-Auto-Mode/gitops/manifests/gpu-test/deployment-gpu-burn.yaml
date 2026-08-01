@@ -31,8 +31,11 @@ spec:
           effect: NoSchedule
       nodeSelector:
         node-type: gpu
+        kubernetes.io/arch: arm64
       containers:
         - name: burn
+          # Multi-arch (amd64 + arm64/SBSA). Note if you swap in a stress-test image:
+          # oguzpastirmaci/gpu-burn is amd64-only and will not run on G5g.
           image: nvidia/cuda:12.6.2-base-ubuntu22.04
           # No real CUDA kernel here — just a heartbeat that holds the GPU allocation.
           # Swap in oguzpastirmaci/gpu-burn if you want an actual stress test.
