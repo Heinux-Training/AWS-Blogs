@@ -16,10 +16,10 @@ spec:
     # Private subnets carry this tag from eksctl. GPU nodes should never be public.
     - tags:
         kubernetes.io/role/internal-elb: "1"
-        kubernetes.io/cluster/eks-auto-argocd: owned
+        eksctl.cluster.k8s.io/v1alpha1/cluster-name: eks-auto-argocd
   securityGroupSelectorTerms:
     - tags:
-        aws:eks:cluster-name: eks-auto-argocd
+       eksctl.cluster.k8s.io/v1alpha1/cluster-name: eks-auto-argocd
   # NVMe instance stores on g5/g6 are ephemeral; the root EBS volume still needs headroom
   # for the CUDA image layers, which are multi-GB.
   ephemeralStorage:

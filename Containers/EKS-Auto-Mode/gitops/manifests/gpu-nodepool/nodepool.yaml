@@ -34,13 +34,13 @@ spec:
           operator: In
           # g5 / g6 are the cheapest NVIDIA options in ap-southeast-1. Add p-family only if
           # you actually need A100/H100 and have the quota for it.
-          values: ["g5", "g6"]
+          values: ["g5g"]
         - key: eks.amazonaws.com/instance-size
           operator: In
           values: ["xlarge", "2xlarge"]
         - key: kubernetes.io/arch
           operator: In
-          values: ["amd64"]
+          values: ["arm64"]
         - key: kubernetes.io/os
           operator: In
           values: ["linux"]
@@ -48,7 +48,7 @@ spec:
           operator: In
           # Spot first — a smoke test does not care about interruptions. Drop "spot" for
           # anything long-running.
-          values: ["spot", "on-demand"]
+          values: ["on-demand"]
 
       # GPU nodes are the most expensive thing in the cluster: recycle them aggressively
       # once idle, and cap lifetime so they pick up AMI patches.
