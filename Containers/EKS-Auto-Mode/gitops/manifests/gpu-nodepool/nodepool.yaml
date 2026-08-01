@@ -36,9 +36,6 @@ spec:
           # amazon-linux-2023/arm64/nvidia AMI for these, so the driver and device plugin
           # are already present — nothing to install.
           values: ["g5g"]
-        - key: eks.amazonaws.com/instance-size
-          operator: In
-          values: ["xlarge", "2xlarge"]
         - key: kubernetes.io/arch
           operator: In
           values: ["arm64"]
