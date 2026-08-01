@@ -67,6 +67,6 @@ spec:
 
   limits:
     # Hard ceiling on the blast radius of a runaway workload.
-    cpu: "32"
-    memory: 128Gi
-    nvidia.com/gpu: "4"
+    cpu: "100"
+    memory: 500Gi
+    nvidia.com/gpu: "10"
