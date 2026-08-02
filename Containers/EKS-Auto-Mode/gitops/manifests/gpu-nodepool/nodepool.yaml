@@ -30,25 +30,36 @@ spec:
           effect: NoSchedule
 
       requirements:
-        - key: eks.amazonaws.com/instance-family
+        # Instead of pinning a family, describe the shape we want: any instance that carries
+        # an NVIDIA GPU. Auto Mode boots the matching amazon-linux-2023 nvidia AMI variant
+        # (arm64 or amd64), so the driver and device plugin are already present either way.
+        - key: karpenter.k8s.aws/instance-gpu-count
+          operator: Gt
+          values: ["0"]
+        - key: karpenter.k8s.aws/instance-gpu-manufacturer
           operator: In
-          # g5g = Graviton2 + NVIDIA T4G, the arm64 GPU family. Auto Mode boots the
-          # amazon-linux-2023/arm64/nvidia AMI for these, so the driver and device plugin
-          # are already present — nothing to install.
-          values: ["g5g"]
+          # Keeps Neuron/Gaudi-style accelerators out: those advertise their own extended
+          # resource, not nvidia.com/gpu, so the taint and limits below wouldn't apply.
+          values: ["nvidia"]
         - key: kubernetes.io/arch
           operator: In
-          values: ["arm64"]
+          # Both arches. arm64 is g5g only (Graviton2 + T4G); amd64 opens up g4dn/g5/g6/g6e
+          # and the p-family. Karpenter bin-packs for cost, so cheap arm64 g5g usually wins
+          # for small requests — which means a pod whose image is amd64-only MUST pin
+          # `kubernetes.io/arch: amd64` itself or it will land on arm64 and die with
+          # `exec format error`. A mixed-arch pool pushes that decision onto the workload.
+          values: ["arm64", "amd64"]
         - key: kubernetes.io/os
           operator: In
           values: ["linux"]
         - key: topology.kubernetes.io/zone
           operator: In
-          # g5g is NOT offered in ap-southeast-1c, but the cluster has private subnets in all
-          # three AZs. Without this, Karpenter can pick 1c and every launch there fails with
-          # Unsupported/InsufficientInstanceCapacity. Re-check before copying to another
-          # region: aws ec2 describe-instance-type-offerings --location-type availability-zone
-          #   --filters Name=instance-type,Values=g5g.xlarge
+          # arm64 GPU capacity (g5g) is NOT offered in ap-southeast-1c, but the cluster has
+          # private subnets in all three AZs. Without this, Karpenter can pick 1c and every
+          # launch there fails with Unsupported/InsufficientInstanceCapacity. Re-check before
+          # copying to another region, or when a new arm64 GPU family lands with a different
+          # AZ footprint: aws ec2 describe-instance-type-offerings
+          #   --location-type availability-zone --filters Name=instance-type,Values=g5g.*
           values: ["ap-southeast-1a", "ap-southeast-1b"]
         - key: karpenter.sh/capacity-type
           operator: In
