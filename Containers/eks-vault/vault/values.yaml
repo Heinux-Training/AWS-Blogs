@@ -1,0 +1,11 @@
+# Helm values for the HashiCorp Vault chart (dev mode, lab only).
+# Install with:
+#   helm install vault hashicorp/vault -n vault --create-namespace -f vault/values.yaml
+
+server:
+  dev:
+    enabled: true
+    devRootToken: "root"
+
+injector:
+  enabled: true

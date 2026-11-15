@@ -32,9 +32,10 @@ spec:
           effect: NoSchedule
       nodeSelector:
         node-type: gpu
-        # Pin the arch explicitly. The NodePool is arm64-only (g5g / Graviton2 + T4G), and
-        # being explicit here turns an accidental amd64-only image into an unschedulable pod
-        # instead of a CrashLoopBackOff with `exec format error`.
+        # Pin the arch explicitly. The NodePool accepts BOTH arches now, so this is no longer
+        # belt-and-braces — it is load-bearing: without it Karpenter is free to pick either,
+        # and an image missing that arch fails at runtime with `exec format error` rather than
+        # sitting Pending. arm64 (g5g) is the cheaper pick for a smoke test.
         kubernetes.io/arch: arm64
       containers:
         - name: nvidia-smi
